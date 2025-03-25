@@ -1,7 +1,7 @@
 import os
 
 from sqlalchemy.orm import DeclarativeBase, Mapped, relationship
-from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import mapped_column, Session
 from sqlalchemy import String, Integer, BigInteger, DECIMAL, ForeignKey
 from sqlalchemy import create_engine, UniqueConstraint
 from dotenv import load_dotenv
@@ -11,9 +11,12 @@ load_dotenv()
 BD_USER = os.getenv('DB_USER')
 BD_PASSWORD = os.getenv('DB_PASSWORD')
 BD_ADDRESS = os.getenv('DB_ADDRESS')
+BD_PORT = os.getenv('DB_PORT')
 BD_NAME = os.getenv('DB_NAME')
 
-create = create_engine(f'postgresql://{BD_USER}:{BD_PASSWORD}@{BD_ADDRESS}', echo=True)
+MEDIA_DIRECTORY = os.getenv('MEDIA_FOLDER')
+
+engine = create_engine(f'postgresql://{BD_USER}:{BD_PASSWORD}@{BD_ADDRESS}:{BD_PORT}/{BD_NAME}', echo=True)
 
 
 class Base(DeclarativeBase):
@@ -91,33 +94,36 @@ class Products(Base):
     product_category: Mapped[Categories] = relationship(back_populates='products')
 
 
+def main():
+    Base.metadata.create_all(engine)
+    categories = ('Лаваши', 'Донары', 'Хот-Доги', 'Десерты', 'Соусы')
+    products = (
+        (1, 'Мини Лаваш', 20000, 'Мясо, тесто, помидоры', f'{MEDIA_DIRECTORY}/lavash/lavash_1.jpg'),
+        (1, 'Мини Говяжий', 22000, 'Мясо, тесто, помидоры', f'{MEDIA_DIRECTORY}/lavash/lavash_2.jpg'),
+        (1, 'Мини с сыром', 24000, 'Мясо, тесто, помидоры', f'{MEDIA_DIRECTORY}/lavash/lavash_3.jpg'),
+        (2, 'Донар со свининой', 18000, 'Свинина, тесто, овощи', f'{MEDIA_DIRECTORY}/donar/donar_1.jpg'),
+        (2, 'Донар с курицей', 22000, 'Курица, тесто, овощи', f'{MEDIA_DIRECTORY}/donar/donar_2.jpg'),
+        (2, 'Донар с говядиной', 19000, 'Говядина, тесто, овощи', f'{MEDIA_DIRECTORY}/donar/donar_3.jpg'),
+    )
+
+    with Session(engine) as session:
+        for category in categories:
+            query = Categories(category_name=category)
+            session.add(query)
+        session.commit()
+
+        for product in products:
+            query = Products(
+                category_id=product[0],
+                product_name=product[1],
+                price=product[2],
+                description=product[3],
+                image=product[4]
+            )
+
+            session.add(query)
+        session.commit()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+if __name__ == '__main__':
+    main()
