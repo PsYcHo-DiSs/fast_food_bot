@@ -52,6 +52,12 @@ def db_get_all_category() -> Iterable:
     return db_session.scalars(query)
 
 
+def db_get_products(category_id: int) -> Iterable:
+    """Получаем все продукты выбранной категории о id категории"""
+    query = select(Products).where(Products.category_id == category_id)
+    return db_session.scalars(query)
+
+
 # def db_update_user_cart(chat_id: int):
 #     subquery = db_session.scalar(select(Users).where(Users.telegram == chat_id))
 #     query = db_session.get_one(Carts, subquery.id)

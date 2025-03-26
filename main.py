@@ -6,7 +6,7 @@ from aiogram.client.bot import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from dotenv import load_dotenv
 
 from keyboards.inline_kb import *
@@ -76,6 +76,29 @@ async def return_to_main_menu(message: Message):
     await bot.delete_message(chat_id=message.chat.id,
                              message_id=message.message_id - 1)
     await show_main_menu(message)
+
+
+@dp.callback_query(F.data.regexp(r'category_[1-9]'))
+async def show_product_button(callback: CallbackQuery):
+    """Показ всех продуктов выбранной категории"""
+    chat_id = callback.message.chat.id
+    message_id = callback.message.message_id
+    category_id = int(callback.data.split('_')[1])
+    await bot.edit_message_text(text='Выберите продукт',
+                                chat_id=chat_id,
+                                message_id=message_id,
+                                reply_markup=show_product_by_category(category_id))
+
+
+@dp.callback_query(F.data == 'return_to_category')
+async def return_to_category_button(callback: CallbackQuery):
+    """Возврат к выбору категории продукта"""
+    chat_id = callback.message.chat.id
+    message_id = callback.message.message_id
+    await bot.edit_message_text(chat_id=chat_id,
+                                message_id=message_id,
+                                text='Выберите категорию',
+                                reply_markup=generate_category_menu())
 
 
 async def main():
