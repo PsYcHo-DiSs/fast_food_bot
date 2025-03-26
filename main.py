@@ -33,7 +33,7 @@ async def start_register_user(message: Message):
     full_name = message.from_user.full_name
     if db_registrate_user(full_name, chat_id):
         await message.answer(text='Авторизация прошла успешно')
-        # TODO Показать меню
+        await show_main_menu(message)
     else:
         await message.answer(text='для связи с Вами нужен ваш контактный номер',
                              reply_markup=share_phone_button())
@@ -48,7 +48,35 @@ async def update_user_info_finish_register(message: Message):
     if db_create_user_cart(chat_id):
         await message.answer(text='Регистрация прошла успешно')
 
-    # TODO Показать меню
+    await show_main_menu(message)
+
+
+async def show_main_menu(message: Message):
+    """Сделать заказ, История, Корзинка, Настройки"""
+    await message.answer(text='Выберите направление',
+                         reply_markup=generate_main_menu())
+
+
+@dp.message(F.text == '✔️ Сделать заказ')
+async def make_order(message: Message):
+    """Реакция на кнопку Сделать заказ"""
+    chat_id = message.chat.id
+    # TODO Получить id корзины пользователя
+
+    await bot.send_message(chat_id=chat_id,
+                           text='Погнали нахуй!',
+                           reply_markup=back_to_main_menu())
+    await message.answer(text='Выберите категорию',
+                         reply_markup=generate_category_menu())
+
+
+@dp.message(F.text.regexp(r'^Г[а-я]+ [а-я]{4}'))  # @dp.message(F.text == 'Главное меню')
+async def return_to_main_menu(message: Message):
+    """Реакция на кнопку Главное меню"""
+    await bot.delete_message(chat_id=message.chat.id,
+                             message_id=message.message_id - 1)
+    await show_main_menu(message)
+
 
 async def main():
     await dp.start_polling(bot)

@@ -44,3 +44,14 @@ def db_create_user_cart(chat_id: int) -> bool:
     except AttributeError:
         """Если контакт отправил анонимный пользователь"""
         db_session.rollback()
+
+
+def db_get_all_category() -> Iterable:
+    """Получаем все категории"""
+    query = select(Categories)
+    return db_session.scalars(query)
+
+
+# def db_update_user_cart(chat_id: int):
+#     subquery = db_session.scalar(select(Users).where(Users.telegram == chat_id))
+#     query = db_session.get_one(Carts, subquery.id)
