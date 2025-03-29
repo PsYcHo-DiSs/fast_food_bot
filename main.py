@@ -6,7 +6,7 @@ from aiogram.client.bot import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, FSInputFile
 from dotenv import load_dotenv
 
 from keyboards.inline_kb import *
@@ -99,6 +99,31 @@ async def return_to_category_button(callback: CallbackQuery):
                                 message_id=message_id,
                                 text='Выберите категорию',
                                 reply_markup=generate_category_menu())
+
+
+@dp.callback_query(F.data.contains('product_'))
+async def show_product_detail(callback: CallbackQuery):
+    """Показ выбранного продукта"""
+    chat_id = callback.message.chat.id
+    message_id = callback.message.message_id
+    product_id = int(callback.data.split('_')[1])
+    product = db_get_product_by_id(product_id)
+    await bot.delete_message(chat_id=chat_id,
+                             message_id=message_id)
+    if user_cart_id := db_get_user_cart(chat_id):
+        db_update_to_cart(price=product.price, cart_id=user_cart_id)
+
+        text = f'<b>{product.product_name}</b>\n\n'
+        text += f'<b>Ингредиенты:</b> {product.description}\n'
+        text += f'<b>Цена:</b> {product.price} сум'
+
+        await bot.send_photo(chat_id=chat_id,
+                             photo=FSInputFile(path=product.image),
+                             caption=text)
+    else:
+        await bot.send_message(chat_id=chat_id,
+                               text='К сожалению, у нас нет вашего контакта!',
+                               reply_markup=share_phone_button())
 
 
 async def main():
