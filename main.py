@@ -184,6 +184,25 @@ async def constructor_changer(callback: CallbackQuery):
         pass
 
 
+@dp.callback_query(F.data == 'put_into_Cart')
+async def put_into_final_carts(callback: CallbackQuery) -> None:
+    """Добавление товара в корзину"""
+    chat_id = callback.from_user.id
+    message_id = callback.message.message_id
+    product_name = callback.message.caption.split('\n')[0]
+    user_cart = db_get_user_cart(chat_id)
+
+    await bot.delete_message(chat_id=chat_id, message_id=message_id)
+
+    upsert_final_cart(product_name=product_name,
+                      total_price=user_cart.total_price,
+                      total_products=user_cart.total_products,
+                      cart_id=user_cart.id)
+
+    await bot.send_message(chat_id=chat_id, text='Товар(-ы) успешно добавлен(-ы) в вашу корзину')
+    await make_order(callback.message)
+
+
 async def main():
     await dp.start_polling(bot)
 

@@ -1,9 +1,8 @@
 from typing import Iterable
 
-from sqlalchemy.orm import Session
-from sqlalchemy import update, delete, select, DECIMAL
-from sqlalchemy.sql.functions import sum
+from sqlalchemy import update, select, DECIMAL, ScalarResult
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from .models import Users, Carts, FinalCarts, Categories, Products, engine
 
@@ -65,7 +64,7 @@ def db_get_product_by_id(product_id: int) -> Products:
 
 
 def db_get_user_cart(chat_id: int) -> Carts:
-    """Получаем пользователя по связанной таблице Users"""
+    """Получаем корзинку пользователя по связанной таблице Users"""
     query = select(Carts).join(Users).where(Users.telegram == chat_id)
     return db_session.scalar(query)
 
@@ -80,7 +79,44 @@ def db_update_to_cart(price: DECIMAL, cart_id: int, quantity=1) -> None:
     db_session.commit()
 
 
-def db_get_product_by_name(product_name) -> Products:
+def db_get_product_by_name(product_name: str) -> Products:
     """Получаем продукт по его названию"""
     query = select(Products).where(Products.product_name == product_name)
     return db_session.scalar(query)
+
+
+def db_get_final_carts_by_cart_id(cart_id: int) -> ScalarResult[FinalCarts]:
+    query = select(FinalCarts).join(Carts).where(Carts.id == cart_id)
+    return db_session.scalars(query)
+
+
+def db_get_final_cart_entry(product_name: str, cart_id: int) -> FinalCarts:
+    """Получить запись в финальной корзине пользователя по названию товара"""
+    query = select(FinalCarts).where(FinalCarts.product_name == product_name,
+                                     FinalCarts.user_cart == cart_id)
+    return db_session.scalar(query)
+
+
+def upsert_final_cart(product_name: str, total_price: DECIMAL, total_products: int, cart_id: int) -> None:
+    """Добавляем товар в корзину, если его нет, иначе обновляем количество и цену"""
+    existing_final_cart = db_get_final_cart_entry(product_name, cart_id)
+
+    if existing_final_cart:
+        query = update(FinalCarts).where(
+            (FinalCarts.product_name == product_name) & (FinalCarts.user_cart == cart_id)
+        ).values(
+            final_price=existing_final_cart.final_price + total_price,
+            quantity=existing_final_cart.quantity + total_products
+        )
+
+        db_session.execute(query)
+
+    else:
+        query = FinalCarts(product_name=product_name,
+                           final_price=total_price,
+                           quantity=total_products,
+                           cart_id=cart_id)
+
+        db_session.add(query)
+
+    db_session.commit()
