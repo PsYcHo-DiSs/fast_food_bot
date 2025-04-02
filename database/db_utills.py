@@ -93,7 +93,7 @@ def db_get_final_carts_by_cart_id(cart_id: int) -> ScalarResult[FinalCarts]:
 def db_get_final_cart_entry(product_name: str, cart_id: int) -> FinalCarts:
     """Получить запись в финальной корзине пользователя по названию товара"""
     query = select(FinalCarts).where(FinalCarts.product_name == product_name,
-                                     FinalCarts.user_cart == cart_id)
+                                     FinalCarts.cart_id == cart_id)
     return db_session.scalar(query)
 
 
@@ -103,7 +103,7 @@ def upsert_final_cart(product_name: str, total_price: DECIMAL, total_products: i
 
     if existing_final_cart:
         query = update(FinalCarts).where(
-            (FinalCarts.product_name == product_name) & (FinalCarts.user_cart == cart_id)
+            (FinalCarts.product_name == product_name) & (FinalCarts.cart_id == cart_id)
         ).values(
             final_price=existing_final_cart.final_price + total_price,
             quantity=existing_final_cart.quantity + total_products

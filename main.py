@@ -199,8 +199,8 @@ async def put_into_final_carts(callback: CallbackQuery) -> None:
                       total_products=user_cart.total_products,
                       cart_id=user_cart.id)
 
-    await bot.send_message(chat_id=chat_id, text='Товар(-ы) успешно добавлен(-ы) в вашу корзину')
-    await make_order(callback.message)
+    await bot.send_message(chat_id=chat_id, text='Товар(-ы) успешно добавлен(-ы) в вашу корзину ✅')
+    await return_to_category_menu(callback.message)
 
 
 async def main():
