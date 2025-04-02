@@ -1,6 +1,7 @@
 from typing import Iterable
 
 from sqlalchemy import update, select, DECIMAL, ScalarResult
+from sqlalchemy.sql.functions import sum
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -120,3 +121,12 @@ def upsert_final_cart(product_name: str, total_price: DECIMAL, total_products: i
         db_session.add(query)
 
     db_session.commit()
+
+
+def db_get_total_final_price(chat_id: int) -> DECIMAL:
+    """Получение общей суммы к оплате из постоянной корзины пользователя"""
+    query = select(sum(FinalCarts.final_price)
+                   ).join(Carts
+                          ).join(Users
+                                 ).where(Users.telegram == chat_id)
+    return db_session.execute(query).fetchone()[0]

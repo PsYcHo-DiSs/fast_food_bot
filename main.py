@@ -63,15 +63,12 @@ async def show_main_menu(message: Message):
 async def make_order(message: Message):
     """Реакция на кнопку Сделать заказ"""
     chat_id = message.chat.id
-    # TODO Получить id корзины пользователя
-    # if user_cart_id := db_get_user_cart(chat_id):
-    #     bot.me
-    #     await bot.send_message()
+
     await bot.send_message(chat_id=chat_id,
                            text='Погнали нахуй!',
                            reply_markup=back_to_main_menu())
     await message.answer(text='Выберите категорию',
-                         reply_markup=generate_category_menu())
+                         reply_markup=generate_category_menu(chat_id))
 
 
 @dp.message(F.text.regexp(r'^Г[а-я]+ [а-я]{4}'))  # @dp.message(F.text == 'Главное меню')
@@ -102,7 +99,7 @@ async def return_to_category_button(callback: CallbackQuery):
     await bot.edit_message_text(chat_id=chat_id,
                                 message_id=message_id,
                                 text='Выберите категорию',
-                                reply_markup=generate_category_menu())
+                                reply_markup=generate_category_menu(chat_id))
 
 
 @dp.callback_query(F.data.contains('product_'))
