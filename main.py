@@ -17,6 +17,7 @@ from utils.text_utils import *
 
 load_dotenv()
 TOKEN = getenv('TOKEN')
+MEDIA_FOLDER = getenv('MEDIA_FOLDER')
 dp = Dispatcher()
 bot = Bot(TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
@@ -198,6 +199,42 @@ async def put_into_final_carts(callback: CallbackQuery) -> None:
 
     await bot.send_message(chat_id=chat_id, text='Товар(-ы) успешно добавлен(-ы) в вашу корзину ✅')
     await return_to_category_menu(callback.message)
+
+
+@dp.callback_query(F.data == 'your_final_cart')
+async def show_total_goods_list(callback: CallbackQuery):
+    """Показ содержимого финальной корзины"""
+    chat_id = callback.from_user.id
+    message_id = callback.message.message_id
+
+    await bot.delete_message(chat_id=chat_id, message_id=message_id)
+
+    context = counting_products_from_final_carts(chat_id, 'Ваша корзина')
+    # context returns (count, text, total_final_price, cart_id)
+    count, text, *_ = context
+    if count:
+        # если корзина НЕ пуста
+        await bot.send_photo(chat_id=chat_id,
+                             photo=FSInputFile(path=f"{MEDIA_FOLDER}/final_cart_img.jpg"),
+                             caption=text,
+                             reply_markup=generate_pay_delete_product(chat_id))
+    else:
+        # Пустая корзина
+        await bot.send_message(chat_id=chat_id,
+                               text=text)
+
+        await make_order(callback.message)
+
+
+@dp.callback_query(F.data.regexp(r'delete_\d+'))
+async def delete_final_cart_product(callback: CallbackQuery):
+    """Реакция на кнопку с иксом для удаления"""
+    f_cart_id = int(callback.data.split('_')[1])
+    db_delete_product_by_final_cart_id(f_cart_id)
+    await bot.answer_callback_query(callback_query_id=callback.id,
+                                    text='Продукт удалён!')
+
+    await show_total_goods_list(callback)
 
 
 async def main():

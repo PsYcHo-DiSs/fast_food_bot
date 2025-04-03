@@ -1,6 +1,6 @@
 from typing import Iterable
 
-from sqlalchemy import update, select, DECIMAL, ScalarResult
+from sqlalchemy import update, select, delete, DECIMAL, ScalarResult
 from sqlalchemy.sql.functions import sum
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -53,7 +53,7 @@ def db_get_all_category() -> Iterable:
 
 
 def db_get_products(category_id: int) -> Iterable:
-    """Получаем все продукты выбранной категории о id категории"""
+    """Получаем все продукты выбранной категории с id категории"""
     query = select(Products).where(Products.category_id == category_id)
     return db_session.scalars(query)
 
@@ -86,8 +86,12 @@ def db_get_product_by_name(product_name: str) -> Products:
     return db_session.scalar(query)
 
 
-def db_get_final_carts_by_cart_id(cart_id: int) -> ScalarResult[FinalCarts]:
-    query = select(FinalCarts).join(Carts).where(Carts.id == cart_id)
+def db_get_final_carts_by_chat_id(chat_id: int) -> ScalarResult[FinalCarts]:
+    query = select(FinalCarts
+                   ).join(Carts
+                          ).join(Users
+                                 ).where(Users.telegram == chat_id)
+
     return db_session.scalars(query)
 
 
@@ -130,3 +134,21 @@ def db_get_total_final_price(chat_id: int) -> DECIMAL:
                           ).join(Users
                                  ).where(Users.telegram == chat_id)
     return db_session.execute(query).fetchone()[0]
+
+
+def db_get_products_for_delete(chat_id: int) -> Iterable:
+    """Получаем порядковый номер и название товара для удаления из корзины"""
+    query = select(FinalCarts.id,
+                   FinalCarts.product_name
+                   ).join(Carts
+                          ).join(Users
+                                 ).where(Users.telegram == chat_id)
+
+    return db_session.execute(query).fetchall()
+
+
+def db_delete_product_by_final_cart_id(f_cart_id: int) -> None:
+    """Удаление товара из финальной корзины по id записи товара"""
+    query = delete(FinalCarts).where(FinalCarts.id == f_cart_id)
+    db_session.execute(query)
+    db_session.commit()

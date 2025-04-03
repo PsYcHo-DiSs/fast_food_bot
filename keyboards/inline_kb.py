@@ -1,5 +1,6 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardMarkup, InlineKeyboardButton
-from database.db_utills import db_get_all_category, db_get_products, db_get_total_final_price
+from database.db_utills import (db_get_all_category, db_get_products,
+                                db_get_total_final_price, db_get_products_for_delete)
 
 
 def generate_category_menu(chat_id: int) -> InlineKeyboardMarkup:
@@ -7,7 +8,7 @@ def generate_category_menu(chat_id: int) -> InlineKeyboardMarkup:
     categories = db_get_all_category()
     total_final_price = db_get_total_final_price(chat_id) or 0
     builder = InlineKeyboardBuilder()
-    builder.button(text=f'Ваша корзинка ({total_final_price} сум)', callback_data='Ваша корзинка')
+    builder.button(text=f'Ваша корзинка ({total_final_price} сум)', callback_data='your_final_cart')
     [builder.button(text=category.category_name,
                     callback_data=f'category_{category.id}') for category in categories]
 
@@ -40,4 +41,17 @@ def generate_constructor_button(quantity=1) -> InlineKeyboardMarkup:
     builder.button(text='Положить в корзину 🛒', callback_data='put_into_Cart')
 
     builder.adjust(3, 1)
+    return builder.as_markup()
+
+
+def generate_pay_delete_product(chat_id: int) -> InlineKeyboardMarkup:
+    """"""
+    builder = InlineKeyboardBuilder()
+    final_cart_products = db_get_products_for_delete(chat_id)
+    builder.button(text='🚀 Оформить заказ', callback_data='order_pay')
+    for f_cart_id, f_product_name in final_cart_products:
+        builder.button(text=f'❌ {f_product_name}',
+                       callback_data=f'delete_{f_cart_id}')
+
+    builder.adjust(1)
     return builder.as_markup()
