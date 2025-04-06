@@ -6,7 +6,7 @@ from aiogram.client.bot import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery, FSInputFile
+from aiogram.types import Message, CallbackQuery, FSInputFile, LabeledPrice
 from aiogram.exceptions import TelegramBadRequest
 from dotenv import load_dotenv
 
@@ -16,10 +16,12 @@ from database.db_utills import *
 from utils.text_utils import *
 
 load_dotenv()
-TOKEN = getenv('TOKEN')
+TLG_TOKEN = getenv('TOKEN')
+PAYMENT_TOKEN = getenv('CLICK_PAYMENT_TOKEN')
+MANAGER_GROUP = getenv('MANAGER_GROUP_ORDERS')
 MEDIA_FOLDER = getenv('MEDIA_FOLDER')
 dp = Dispatcher()
-bot = Bot(TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot = Bot(TLG_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
 
 @dp.message(CommandStart())
@@ -75,8 +77,11 @@ async def make_order(message: Message):
 @dp.message(F.text.regexp(r'^Г[а-я]+ [а-я]{4}'))  # @dp.message(F.text == 'Главное меню')
 async def return_to_main_menu(message: Message):
     """Реакция на кнопку Главное меню"""
-    await bot.delete_message(chat_id=message.chat.id,
-                             message_id=message.message_id - 1)
+    try:
+        await bot.delete_message(chat_id=message.chat.id,
+                                 message_id=message.message_id - 1)
+    except TelegramBadRequest:
+        ...
     await show_main_menu(message)
 
 
@@ -138,8 +143,11 @@ async def return_to_category_menu(message: Message):
     """Назад к выбору продукта по категории"""
     chat_id = message.chat.id
     message_id = message.message_id
-    await bot.delete_message(chat_id=chat_id,
-                             message_id=message_id - 1)
+    try:
+        await bot.delete_message(chat_id=chat_id,
+                                 message_id=message_id - 1)
+    except TelegramBadRequest:
+        ...
     await make_order(message)
 
 
@@ -235,6 +243,47 @@ async def delete_final_cart_product(callback: CallbackQuery):
                                     text='Продукт удалён!')
 
     await show_total_goods_list(callback)
+
+
+@dp.callback_query(F.data == 'order_pay')
+async def create_order(callback: CallbackQuery):
+    """Оплата продуктов"""
+    chat_id = callback.from_user.id
+    message_id = callback.message.message_id
+
+    await bot.delete_message(chat_id=chat_id,
+                             message_id=message_id)
+
+    count, text, total_final_price, cart_id = (
+        counting_products_from_final_carts(chat_id, 'Итоговый список для оплаты'))
+    text += '\nДоставка по городу 10000 сум'
+
+    text = text.replace('<b>', '').replace('</b>', '')
+
+    await bot.send_invoice(chat_id=chat_id,
+                           title='Ваш заказ',
+                           description=text,
+                           payload='bot-defined invoice payload',
+                           provider_token=PAYMENT_TOKEN,
+                           currency='UZS',
+                           prices=[
+                               LabeledPrice(label='Общая стоимость', amount=total_final_price * 100),
+                               LabeledPrice(label='Доставка', amount=10000 * 100)
+                           ])
+    await bot.send_message(chat_id=chat_id,
+                           text='Заказ оплачен!')
+
+    await sending_report_to_manager(chat_id, text)
+    # очистка финальной корзины пользователя после отправки информации менеджерам
+    db_clear_final_cart(cart_id)
+
+
+async def sending_report_to_manager(chat_id: int, text: str):
+    """Отправка сообщения в чат группу"""
+    user = db_get_user_by_chat_id(chat_id)
+    text += f'\n\n<b>Имя заказчика: {user.name}\nКонтактный номер: {user.phone}</b>\n\n'
+    await bot.send_message(chat_id=MANAGER_GROUP,
+                           text=text)
 
 
 async def main():

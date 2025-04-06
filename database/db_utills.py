@@ -152,3 +152,16 @@ def db_delete_product_by_final_cart_id(f_cart_id: int) -> None:
     query = delete(FinalCarts).where(FinalCarts.id == f_cart_id)
     db_session.execute(query)
     db_session.commit()
+
+
+def db_get_user_by_chat_id(chat_id: int) -> Users:
+    """Получение пользователя по его телеграмм id"""
+    query = select(Users).where(Users.telegram == chat_id)
+    return db_session.scalar(query)
+
+
+def db_clear_final_cart(cart_id: int) -> None:
+    """Очистка финальной корзинки по телеграм id временной корзинки"""
+    query = delete(FinalCarts).where(FinalCarts.cart_id == cart_id)
+    db_session.execute(query)
+    db_session.commit()
