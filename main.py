@@ -286,6 +286,21 @@ async def sending_report_to_manager(chat_id: int, text: str):
                            text=text)
 
 
+@dp.message(F.text == r'🛒 Корзинка')
+async def cart_from_main_menu(message: Message):
+    await message.answer("Режим Разработки, учебный бот")
+
+
+@dp.message(F.text == r'📖 История')
+async def history_from_main_menu(message: Message):
+    await message.answer("Режим Разработки,  учебный бот")
+
+
+@dp.message(F.text == r'⚙️ Настройки')
+async def setting_from_main_menu(message: Message):
+    await message.answer("Режим Разработки, учебный бот ")
+
+
 async def main():
     await dp.start_polling(bot)
 

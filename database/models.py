@@ -16,7 +16,7 @@ BD_NAME = os.getenv('DB_NAME')
 
 MEDIA_DIRECTORY = os.getenv('MEDIA_FOLDER')
 
-engine = create_engine(f'postgresql://{BD_USER}:{BD_PASSWORD}@{BD_ADDRESS}:{BD_PORT}/{BD_NAME}', echo=True)
+engine = create_engine(f'postgresql://{BD_USER}:{BD_PASSWORD}@{BD_ADDRESS}:{BD_PORT}/{BD_NAME}', echo=False)
 
 
 class Base(DeclarativeBase):
@@ -96,7 +96,7 @@ class Products(Base):
 
 def main():
     Base.metadata.create_all(engine)
-    categories = ('Лаваши', 'Донары', 'Хот-Доги', 'Десерты', 'Соусы')
+    categories = ('Лаваши', 'Донары', 'Хот-Доги', 'Десерты', 'Соусы', 'Напитки')
     products = (
         (1, 'Мини Лаваш', 20000, 'Мясо, тесто, помидоры', f'{MEDIA_DIRECTORY}/lavash/lavash_1.jpg'),
         (1, 'Мини Говяжий', 22000, 'Мясо, тесто, помидоры', f'{MEDIA_DIRECTORY}/lavash/lavash_2.jpg'),
