@@ -1,6 +1,6 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardMarkup, InlineKeyboardButton
 from database.db_utills import (db_get_all_category, db_get_products,
-                                db_get_total_final_price, db_get_products_for_delete)
+                                db_get_total_final_price, db_get_final_products_for_edit)
 
 
 def generate_category_menu(chat_id: int) -> InlineKeyboardMarkup:
@@ -44,14 +44,16 @@ def generate_constructor_button(quantity=1) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def generate_pay_delete_product(chat_id: int) -> InlineKeyboardMarkup:
-    """"""
+def generate_pay_edit_product(chat_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура оплаты / редактирования состояния финальной корзинки"""
     builder = InlineKeyboardBuilder()
-    final_cart_products = db_get_products_for_delete(chat_id)
+    final_cart_products = db_get_final_products_for_edit(chat_id)
     builder.button(text='🚀 Оформить заказ', callback_data='order_pay')
-    for f_cart_id, f_product_name in final_cart_products:
-        builder.button(text=f'❌ {f_product_name}',
-                       callback_data=f'delete_{f_cart_id}')
+    for cart in final_cart_products:
+        builder.button(text='➖', callback_data=f'edit_{cart.id}_-')
+        builder.button(text=f'❌ {cart.product_name}',
+                       callback_data=f'delete_{cart.id}')
+        builder.button(text='➕', callback_data=f'edit_{cart.id}_+')
 
-    builder.adjust(1)
+    builder.adjust(1, 3)
     return builder.as_markup()

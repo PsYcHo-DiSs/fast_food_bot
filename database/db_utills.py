@@ -2,7 +2,7 @@ from typing import Iterable
 
 from sqlalchemy import update, select, delete, DECIMAL, ScalarResult
 from sqlalchemy.sql.functions import sum
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .models import Users, Carts, FinalCarts, Categories, Products, engine
@@ -136,15 +136,24 @@ def db_get_total_final_price(chat_id: int) -> DECIMAL:
     return db_session.execute(query).fetchone()[0]
 
 
-def db_get_products_for_delete(chat_id: int) -> Iterable:
-    """Получаем порядковый номер и название товара для удаления из корзины"""
-    query = select(FinalCarts.id,
-                   FinalCarts.product_name
-                   ).join(Carts
-                          ).join(Users
-                                 ).where(Users.telegram == chat_id)
+def db_get_final_products_for_edit(chat_id: int) -> Iterable:
+    """Получаем данные из итоговой корзинки для редактирования"""
+    try:
+        query = select(FinalCarts).join(Carts).join(Users).where(Users.telegram == chat_id)
+        result = db_session.execute(query).all()
 
-    return db_session.execute(query).fetchall()
+        if not result:
+            raise ValueError(f"Нет продуктов для пользователя с chat_id {chat_id}.")
+
+        return [row[0] for row in result]
+
+    except SQLAlchemyError as e:
+        print(f"Ошибка при работе с базой данных: {e}")
+        raise ConnectionError("Ошибка подключения к базе данных.")
+
+    except ValueError as e:
+        print(f"Ошибка: {e}")
+        raise e
 
 
 def db_delete_product_by_final_cart_id(f_cart_id: int) -> None:
@@ -152,6 +161,48 @@ def db_delete_product_by_final_cart_id(f_cart_id: int) -> None:
     query = delete(FinalCarts).where(FinalCarts.id == f_cart_id)
     db_session.execute(query)
     db_session.commit()
+
+
+def db_get_product_by_final_cart_id(f_cart_id: int) -> FinalCarts:
+    """Возвращает запись товара из финальной корзины по id финальной корзины"""
+    try:
+        query = select(FinalCarts).where(FinalCarts.id == f_cart_id)
+        product = db_session.scalar(query)
+
+        if product is None:
+            raise ValueError(f"Продукт с ID {f_cart_id} не найден.")
+
+        return product
+
+    except SQLAlchemyError as e:
+        # Логирование ошибки в базу данных или файл
+        print(f"Ошибка при работе с базой данных: {e}")
+        raise ConnectionError("Ошибка подключения к базе данных.")
+
+    except ValueError as e:
+        # Логирование ошибки в файл
+        print(f"Ошибка: {e}")
+        raise e  # Перебрасываем исключение, чтобы обработать его на уровне вызывающей функции
+
+
+def db_update_final_cart_product(f_cart_id: int, final_price: DECIMAL, quantity: int) -> None:
+    """Обновляет запись о продукте в финальной корзинке пользователя"""
+    try:
+        query = update(FinalCarts).where(FinalCarts.id == f_cart_id).values(final_price=final_price, quantity=quantity)
+        result = db_session.execute(query)
+        db_session.commit()
+
+        if result.rowcount == 0:
+            raise ValueError(f"Продукт с ID {f_cart_id} не найден для обновления.")
+
+    except SQLAlchemyError as e:
+        db_session.rollback()  # откат транзакции в случае ошибки
+        print(f"Ошибка при обновлении в базе данных: {e}")
+        raise ConnectionError("Ошибка при работе с базой данных.")
+
+    except ValueError as e:
+        print(f"Ошибка: {e}")
+        raise e  # Перебрасываем исключение на более высокий уровень
 
 
 def db_get_user_by_chat_id(chat_id: int) -> Users:

@@ -210,28 +210,47 @@ async def put_into_final_carts(callback: CallbackQuery) -> None:
 
 
 @dp.callback_query(F.data == 'your_final_cart')
-async def show_total_goods_list(callback: CallbackQuery):
+async def show_total_goods_list(callback: CallbackQuery, editor=False):
     """Показ содержимого финальной корзины"""
     chat_id = callback.from_user.id
     message_id = callback.message.message_id
 
-    await bot.delete_message(chat_id=chat_id, message_id=message_id)
-
     context = counting_products_from_final_carts(chat_id, 'Ваша корзина')
     # context returns (count, text, total_final_price, cart_id)
     count, text, *_ = context
-    if count:
-        # если корзина НЕ пуста
-        await bot.send_photo(chat_id=chat_id,
-                             photo=FSInputFile(path=f"{MEDIA_FOLDER}/final_cart_img.jpg"),
-                             caption=text,
-                             reply_markup=generate_pay_delete_product(chat_id))
-    else:
-        # Пустая корзина
-        await bot.send_message(chat_id=chat_id,
-                               text=text)
 
-        await make_order(callback.message)
+    if editor:
+        # вошли в режим редактирования финальной корзины
+        if count:
+            # если корзина НЕ пуста
+            await bot.edit_message_caption(chat_id=chat_id,
+                                           message_id=message_id,
+                                           caption=text,
+                                           reply_markup=generate_pay_edit_product(chat_id))
+
+        else:
+            # Пустая корзина
+            await bot.send_message(chat_id=chat_id,
+                                   text=text)
+
+            await make_order(callback.message)
+
+    else:
+        # дефолтный режим, как есть
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
+
+        if count:
+            # если корзина НЕ пуста
+            await bot.send_photo(chat_id=chat_id,
+                                 photo=FSInputFile(path=f"{MEDIA_FOLDER}/final_cart_img.jpg"),
+                                 caption=text,
+                                 reply_markup=generate_pay_edit_product(chat_id))
+        else:
+            # Пустая корзина
+            await bot.send_message(chat_id=chat_id,
+                                   text=text)
+
+            await make_order(callback.message)
 
 
 @dp.callback_query(F.data.regexp(r'delete_\d+'))
@@ -243,6 +262,43 @@ async def delete_final_cart_product(callback: CallbackQuery):
                                     text='Продукт удалён!')
 
     await show_total_goods_list(callback)
+
+
+@dp.callback_query(F.data.regexp(r'^edit_\d+_[+-]$'))
+async def final_cart_editor(callback: CallbackQuery):
+    """Логика редактора продукта из финальной корзины"""
+    chat_id = callback.from_user.id
+    message_id = callback.message.message_id
+
+    f_cart_id = int(callback.data.split('_')[1])
+    action = callback.data.split('_')[2]
+
+    product = db_get_product_by_final_cart_id(f_cart_id)
+    # текущее состояние цены и количества
+    cur_total_qty = product.quantity
+    cur_total_price = product.final_price
+    price_per_one = cur_total_price / cur_total_qty
+
+    match action:
+        case '-':
+            product.quantity -= 1
+            product.final_price -= price_per_one
+        case '+':
+            product.quantity += 1
+            product.final_price += price_per_one
+
+    if product.quantity:
+        db_update_final_cart_product(f_cart_id=f_cart_id,
+                                     final_price=product.final_price,
+                                     quantity=product.quantity)
+        await show_total_goods_list(callback, editor=True)
+    else:
+        db_delete_product_by_final_cart_id(f_cart_id)
+
+        await bot.answer_callback_query(callback_query_id=callback.id,
+                                        text=f'Продукт {product.product_name} удалён!')
+
+        await show_total_goods_list(callback)
 
 
 @dp.callback_query(F.data == 'order_pay')
